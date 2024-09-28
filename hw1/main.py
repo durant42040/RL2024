@@ -84,6 +84,7 @@ def run_policy_iteration(grid_world: GridWorld):
     )
     grid_world.reset()
     print()
+    return policy_iteration.policy, policy_iteration.values
 
 
 def run_value_iteration(grid_world: GridWorld):
@@ -104,6 +105,7 @@ def run_value_iteration(grid_world: GridWorld):
     )
     grid_world.reset()
     print()
+    return value_iteration.policy, value_iteration.values
 
 
 def run_async_dynamic_programming(grid_world: GridWorld):
@@ -126,11 +128,13 @@ def run_async_dynamic_programming(grid_world: GridWorld):
     )
     grid_world.reset()
     print()
+    return async_dynamic_programming.policy, async_dynamic_programming.values
 
 
 if __name__ == "__main__":
-    grid_world = init_grid_world()
-    # run_policy_evaluation(grid_world)
-    # run_policy_iteration(grid_world)
-    # run_value_iteration(grid_world)
+    grid_world = init_grid_world("maze_1.txt")
+    run_policy_evaluation(grid_world)
+    run_policy_iteration(grid_world)
+    run_value_iteration(grid_world)
     run_async_dynamic_programming(grid_world)
+

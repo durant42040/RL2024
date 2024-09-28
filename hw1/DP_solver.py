@@ -1,4 +1,4 @@
-
+from collections import deque
 import numpy as np
 
 from gridworld import GridWorld
@@ -207,7 +207,6 @@ class ValueIteration(DynamicProgramming):
 
         return error
 
-
     def policy_improvement(self):
         """Improve the policy based on the evaluated values"""
         for state in range(self.grid_world.get_state_space()):
@@ -235,73 +234,46 @@ class AsyncDynamicProgramming(DynamicProgramming):
         """
         super().__init__(grid_world, discount_factor)
 
-    def in_place_dp(self):
-        """Perform the in-place dynamic programming update"""
-        while True:
-            error = 0
-            for state in range(self.grid_world.get_state_space()):
-                value = np.max([self.get_q_value(state, action) for action in range(self.grid_world.get_action_space())])
-                error = max(error, np.abs(self.values[state] - value))
-                self.values[state] = value
-            if error < self.threshold:
-                break
+    def bfs_from_terminal(self):
+        terminal_states = []
+        queue = deque()
 
         for state in range(self.grid_world.get_state_space()):
-            q_values = [self.get_q_value(state, action) for action in range(self.grid_world.get_action_space())]
-            best_action = np.argmax(q_values)
-            self.policy[state] = best_action
+            _, reward, done = self.grid_world.step(state, 0)
+            if done:
+                terminal_states.append(state)
+                self.values[state] = reward
+            else:
+                self.values[state] = -np.inf
 
-    def prioritized_sweeping(self):
-        """Perform the prioritized sweeping update"""
-        predecessors = [set() for _ in range(self.grid_world.get_state_space())]
         for state in range(self.grid_world.get_state_space()):
             for action in range(self.grid_world.get_action_space()):
                 next_state, _, _ = self.grid_world.step(state, action)
-                if next_state != state:
-                    predecessors[next_state].add(state)
+                if next_state in terminal_states and state not in terminal_states and state not in queue:
+                    queue.append(state)
+                    break
 
-        queue = []
-        for state in range(self.grid_world.get_state_space()):
-            updated_value = np.max([self.get_q_value(state, action) for action in range(self.grid_world.get_action_space())])
-            bellman_error = np.abs(self.values[state] - updated_value)
-            if bellman_error > self.threshold:
-                queue.append((state, updated_value, bellman_error))
+        error = np.ones(self.grid_world.get_state_space())
 
         while queue:
-            state, updated_value, bellman_error = max(queue, key=lambda x: x[2])
-            queue.remove((state, updated_value, bellman_error))
+            state = queue.popleft()
 
-            self.values[state] = updated_value
+            value = np.max([self.get_q_value(state, action) for action in range(self.grid_world.get_action_space())])
+            error[state] = np.abs(self.values[state] - value)
+            self.values[state] = value
 
-            for predecessor in predecessors[state]:
-                updated_value = np.max([self.get_q_value(predecessor, action) for action in range(self.grid_world.get_action_space())])
-                bellman_error = np.abs(self.values[predecessor] - updated_value)
-                if bellman_error > self.threshold:
-                    if any(predecessor == item[0] for item in queue):
-                        queue = [item for item in queue if item[0] != predecessor]
-                    queue.append((predecessor, updated_value, bellman_error))
+            if error[state] > self.threshold:
+                for action in range(self.grid_world.get_action_space()):
+                    next_state, _, _ = self.grid_world.step(state, action)
+                    if next_state not in queue:
+                        queue.append(next_state)
 
-        for state in range(self.grid_world.get_state_space()):
-            q_values = [self.get_q_value(state, action) for action in range(self.grid_world.get_action_space())]
-            best_action = np.argmax(q_values)
-            self.policy[state] = best_action
-
-
-    def fixed_step_value_iteration(self):
-        for _ in range(int(self.grid_world.get_state_space() / 2) - 2):
-            for state in range(self.grid_world.get_state_space()):
-                q_values = [self.get_q_value(state, action) for action in range(self.grid_world.get_action_space())]
-                self.values[state] = np.max(q_values)
+            if np.all(error < self.threshold):
+                break
 
         for state in range(self.grid_world.get_state_space()):
-            q_values = [self.get_q_value(state, action) for action in range(self.grid_world.get_action_space())]
-            best_action = np.argmax(q_values)
-            self.policy[state] = best_action
+            self.policy[state] = np.argmax([self.get_q_value(state, action) for action in range(self.grid_world.get_action_space())])
 
-    def run(self) -> None:
+    def run(self):
         """Run the algorithm until convergence"""
-        # TODO: Implement the async dynamic programming algorithm until convergence
-        # self.in_place_dp()
-        # self.prioritized_sweeping()
-        self.fixed_step_value_iteration()
-
+        self.bfs_from_terminal()
