@@ -1,11 +1,7 @@
 import numpy as np
 
-from DP_solver import (
-    IterativePolicyEvaluation,
-    PolicyIteration,
-    ValueIteration,
-    AsyncDynamicProgramming,
-)
+from DP_solver import (AsyncDynamicProgramming, IterativePolicyEvaluation,
+                       PolicyIteration, ValueIteration)
 from gridworld import GridWorld
 
 np.set_printoptions(threshold=np.inf, linewidth=np.inf)
@@ -137,4 +133,3 @@ if __name__ == "__main__":
     run_policy_iteration(grid_world)
     run_value_iteration(grid_world)
     run_async_dynamic_programming(grid_world)
-
