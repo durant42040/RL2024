@@ -61,7 +61,6 @@ class GridWorld:
         self.__current_state = 0
         self.__read_maze(maze_file)
 
-
     def __read_maze(self, maze_file: str) -> None:
         """Read the maze file
 
@@ -73,7 +72,6 @@ class GridWorld:
             for j in range(self.__maze.shape[1]):
                 if self.__maze[i, j] != 1:
                     self.__state_list.append((i, j))
-
 
     def print_maze(self) -> None:
         """Print the maze"""
@@ -173,7 +171,6 @@ class GridWorld:
     def get_current_state(self) -> int:
         """Return the current state."""
         return self.__current_state
-        
 
     def step(self, action: int) -> tuple:
         """Take a step in the environment
@@ -203,7 +200,9 @@ class GridWorld:
     def reset(self) -> int:
         """Reset the current step"""
         if self.__init_pos_list:
-            self.__current_state = self.__init_pos_list[np.random.randint(len(self.__init_pos_list))]
+            self.__current_state = self.__init_pos_list[
+                np.random.randint(len(self.__init_pos_list))
+            ]
         else:
             self.__current_state = np.random.randint(len(self.__state_list))
         return self.__current_state
@@ -239,7 +238,6 @@ class GridWorld:
                 break
             state = next_state
         return history
-
 
     def visualize(
         self,
