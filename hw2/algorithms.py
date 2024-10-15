@@ -1,10 +1,4 @@
-from dataclasses import replace
-
 import numpy as np
-from collections import deque
-
-import wandb
-
 from gridworld import GridWorld
 
 
@@ -136,17 +130,10 @@ class TDPrediction(ModelFreePrediction):
     def run(self) -> None:
         """Run the algorithm until max episode"""
         current_state = self.grid_world.reset()
-        i = 0
-        j = 0
         while self.episode_counter < self.max_episode:
             done = False
             while not done:
                 next_state, reward, done = self.collect_data()
-                if next_state == 16:
-                    i += 1
-                elif next_state == 21:
-                    j += 1
-
 
                 self.values[current_state] += self.lr * (
                     reward
@@ -154,10 +141,6 @@ class TDPrediction(ModelFreePrediction):
                     - self.values[current_state]
                 )
                 current_state = next_state
-
-        print(i / self.max_episode)
-        print(j / self.max_episode)
-        quit()
 
 
 class NstepTDPrediction(ModelFreePrediction):
@@ -313,7 +296,6 @@ class MonteCarloPolicyIteration(ModelFreeControl):
         state_trace = [current_state]
         action_trace = []
         reward_trace = []
-        episodic_reward = []
 
         while iter_episode < max_episode:
             iter_episode += 1
@@ -329,17 +311,6 @@ class MonteCarloPolicyIteration(ModelFreeControl):
                 if not done:
                     state_trace.append(next_state)
                 current_state = next_state
-
-            if len(episodic_reward) < 10:
-                episodic_reward.append(np.mean(reward_trace))
-            else:
-                episodic_reward.pop(0)
-                episodic_reward.append(np.mean(reward_trace))
-            assert iter_episode < 10 or len(episodic_reward) == 10
-
-            print(f"Episode: {iter_episode}, {len(reward_trace)} steps")
-
-            wandb.log({"last-10 reward": np.mean(episodic_reward)})
 
             self.policy_evaluation(state_trace, action_trace, reward_trace)
             self.policy_improvement()
@@ -391,7 +362,6 @@ class SARSA(ModelFreeControl):
         """Run the algorithm until convergence."""
         iter_episode = 0
         current_state = self.grid_world.reset()
-        episodic_reward = []
 
         while iter_episode < max_episode:
             action = self.rng.choice(self.action_space, p=self.policy[current_state])
@@ -409,16 +379,6 @@ class SARSA(ModelFreeControl):
                 )
                 current_state = next_state
                 action = next_action
-
-            if len(episodic_reward) < 10:
-                episodic_reward.append(np.mean(reward_trace))
-            else:
-                episodic_reward.pop(0)
-                episodic_reward.append(np.mean(reward_trace))
-
-            assert len(episodic_reward) <= 10
-            wandb.log({"last-10 reward": np.mean(episodic_reward)})
-            print(f"Episode: {iter_episode}, {len(reward_trace)} steps")
 
             iter_episode += 1
 
@@ -452,11 +412,9 @@ class Q_Learning(ModelFreeControl):
         self.rng = np.random.default_rng(seed=seed)
 
     def add_buffer(self, s, a, r, s2, d) -> None:
-        # TODO: add new transition to buffer
         self.buffer.append((s, a, r, s2, d))
 
     def sample_batch(self) -> np.ndarray:
-        # TODO: sample a batch of index of transitions from the buffer
         if len(self.buffer) < self.sample_batch_size:
             return np.array(self.buffer)
 
@@ -468,7 +426,6 @@ class Q_Learning(ModelFreeControl):
 
     def policy_eval_improve(self, s, a, r, s2, is_done) -> None:
         """Evaluate the policy and update the values after one step"""
-        # TODO: Evaluate Q value after one step and improve the policy
         s, a, r, s2 = int(s), int(a), r, int(s2)
         self.q_values[s, a] += self.lr * (
             r
@@ -487,14 +444,11 @@ class Q_Learning(ModelFreeControl):
 
     def run(self, max_episode=1000) -> None:
         """Run the algorithm until convergence."""
-        # TODO: Implement the Q_Learning algorithm
         iter_episode = 0
         current_state = self.grid_world.reset()
         transition_count = 0
-        episodic_reward = []
 
         while iter_episode < max_episode:
-            # TODO: write your code here
             is_done = False
             reward_trace = []
             while not is_done:
@@ -516,13 +470,4 @@ class Q_Learning(ModelFreeControl):
 
                 current_state = next_state
 
-            if len(episodic_reward) < 10:
-                episodic_reward.append(np.mean(reward_trace))
-            else:
-                episodic_reward.pop(0)
-                episodic_reward.append(np.mean(reward_trace))
-
-            print(f"Episode: {iter_episode}, {len(reward_trace)} steps")
-            assert len(episodic_reward) <= 10
-            wandb.log({"last-10 reward": np.mean(episodic_reward)})
             iter_episode += 1

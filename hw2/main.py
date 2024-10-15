@@ -2,10 +2,6 @@ import random
 import numpy as np
 import json
 
-from fontTools.misc.bezierTools import epsilon
-
-import wandb
-
 from algorithms import (
     MonteCarloPrediction,
     TDPrediction,
@@ -135,13 +131,13 @@ def run_NstepTD_prediction(grid_world: GridWorld, seed):
     return prediction.get_all_state_values()
 
 
-def run_MC_policy_iteration(grid_world: GridWorld, iter_num: int, epsilon):
+def run_MC_policy_iteration(grid_world: GridWorld, iter_num: int):
     print(bold(underline("MC Policy Iteration")))
     policy_iteration = MonteCarloPolicyIteration(
         grid_world,
         discount_factor=DISCOUNT_FACTOR,
         learning_rate=LEARNING_RATE,
-        epsilon=epsilon,
+        epsilon=EPSILON,
     )
     policy_iteration.run(max_episode=iter_num)
     grid_world.visualize(
@@ -151,7 +147,6 @@ def run_MC_policy_iteration(grid_world: GridWorld, iter_num: int, epsilon):
         show=False,
         filename=f"MC_policy_iteration_{iter_num}.png",
     )
-
     history = grid_world.run_policy(policy_iteration.get_policy_index())
     print(f"Solved in {bold(green(len(history)))} steps")
     print(history)
@@ -162,13 +157,13 @@ def run_MC_policy_iteration(grid_world: GridWorld, iter_num: int, epsilon):
     print()
 
 
-def run_SARSA(grid_world: GridWorld, iter_num: int, epsilon):
+def run_SARSA(grid_world: GridWorld, iter_num: int):
     print(bold(underline("SARSA Policy Iteration")))
     policy_iteration = SARSA(
         grid_world,
         discount_factor=DISCOUNT_FACTOR,
         learning_rate=LEARNING_RATE,
-        epsilon=epsilon,
+        epsilon=EPSILON,
     )
     policy_iteration.run(max_episode=iter_num)
     grid_world.visualize(
@@ -188,13 +183,13 @@ def run_SARSA(grid_world: GridWorld, iter_num: int, epsilon):
     print()
 
 
-def run_Q_Learning(grid_world: GridWorld, iter_num: int, epsilon):
+def run_Q_Learning(grid_world: GridWorld, iter_num: int):
     print(bold(underline("Q_Learning Policy Iteration")))
     policy_iteration = Q_Learning(
         grid_world,
         discount_factor=DISCOUNT_FACTOR,
         learning_rate=LEARNING_RATE,
-        epsilon=epsilon,
+        epsilon=EPSILON,
         buffer_size=BUFFER_SIZE,
         update_frequency=UPDATE_FREQUENCY,
         sample_batch_size=SAMPLE_BATCH_SIZE,
@@ -218,70 +213,15 @@ def run_Q_Learning(grid_world: GridWorld, iter_num: int, epsilon):
 
 
 if __name__ == "__main__":
-    # ground_truth = np.load("sample_solutions/prediction_GT.npy")
-    #
-    # values = np.zeros((50, 22))
-    #
-    # wandb.init(entity="", project="TD-prediction")
-    # for seed in range(50):
-    #     grid_world = init_grid_world("maze.txt", INIT_POS)
-    #     values[seed] = run_TD_prediction(grid_world, seed)
-    #     quit()
-    #
-    #     bias = np.mean(values[seed] - ground_truth)
-    #     variance = np.var(values[seed])
-    #     wandb.log({"bias": bias, "variance": variance})
-    #
-    # bias = np.mean(values, axis=0) - ground_truth
-    # variance = np.var(values, axis=0)
-    # wandb.log({"avg_bias": np.mean(bias), "avg_var": np.mean(variance)})
-    #
-    # # visualize the bias
-    # grid_world = init_grid_world("maze.txt", INIT_POS)
-    # grid_world.visualize(
-    #     bias,
-    #     title=f"TD bias",
-    #     show=False,
-    #     filename=f"avg_TD_bias.png",
-    # )
-    # grid_world.visualize(
-    #     variance,
-    #     title=f"TD variance",
-    #     show=False,
-    #     filename=f"avg_TD_variance.png",
-    # )
-    # wandb.finish()
-
-    # seed = 1
-    # grid_world = init_grid_world("maze.txt", INIT_POS)
+    seed = 1
+    grid_world = init_grid_world("maze.txt", INIT_POS)
     # 2-1
-    # run_MC_prediction(grid_world, seed)
-    # run_TD_prediction(grid_world, seed)
-    # run_NstepTD_prediction(grid_world, seed)
+    run_MC_prediction(grid_world, seed)
+    run_TD_prediction(grid_world, seed)
+    run_NstepTD_prediction(grid_world, seed)
 
     # 2-2
-    for epsilon in [0.2, 0.3, 0.4]:
-        if epsilon != 0.2:
-            wandb.init(entity="", project="Loss_Curve", name=f"MC_{epsilon}")
-            wandb.config.update(
-                {"epsilon": epsilon, "algorithm": "MC"}, allow_val_change=True
-            )
-            grid_world = init_grid_world("maze.txt")
-            run_MC_policy_iteration(grid_world, 512000, epsilon)
-            wandb.finish()
-
-        wandb.init(entity="", project="Loss_Curve", name=f"SARSA_{epsilon}")
-        wandb.config.update(
-            {"epsilon": epsilon, "algorithm": "SARSA"}, allow_val_change=True
-        )
-        grid_world = init_grid_world("maze.txt")
-        run_SARSA(grid_world, 512000, epsilon)
-        wandb.finish()
-
-        wandb.init(entity="", project="Loss_Curve", name=f"Q_Learning_{epsilon}")
-        wandb.config.update(
-            {"epsilon": epsilon, "algorithm": "Q_Learning"}, allow_val_change=True
-        )
-        grid_world = init_grid_world("maze.txt")
-        run_Q_Learning(grid_world, 50000, epsilon)
-        wandb.finish()
+    grid_world = init_grid_world("maze.txt")
+    run_MC_policy_iteration(grid_world, 512000)
+    run_SARSA(grid_world, 512000)
+    run_Q_Learning(grid_world, 50000)
