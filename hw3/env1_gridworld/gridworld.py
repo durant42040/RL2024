@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from gymnasium import spaces
 from matplotlib import colors
+from sympy.strategies.core import switch
 
 COLORS = [
     "white",
@@ -16,7 +17,7 @@ COLORS = [
     "yellow",
     "brown",
     "aquamarine",
-    "skyblue"
+    "skyblue",
 ]
 
 
@@ -97,9 +98,11 @@ class GridWorld:
         self._state_list = []
         self._current_state = 0
         self.max_step = max_step
-        self.maze_name = maze_file.split('/')[-1].replace(".txt", "").capitalize()
+        self.maze_name = maze_file.split("/")[-1].replace(".txt", "").capitalize()
         self._read_maze(maze_file)
         self.render_init(self.maze_name)
+        self.is_door_open = False
+        self.is_bait_bitten = False
 
         # if min_y is None you can initialize the agent in any state
         # if min_y is not None, you can initialize the agent in the state left to min_y
@@ -152,10 +155,12 @@ class GridWorld:
         assert len(self._portal_state) == 2 or len(self._portal_state) == 0
         self.portal_next_state = {}
         if len(self._portal_state) == 2:
-            self.portal_next_state[self._state_list[self._portal_state[0]]
-                                   ] = self._state_list[self._portal_state[1]]
-            self.portal_next_state[self._state_list[self._portal_state[1]]
-                                   ] = self._state_list[self._portal_state[0]]
+            self.portal_next_state[self._state_list[self._portal_state[0]]] = (
+                self._state_list[self._portal_state[1]]
+            )
+            self.portal_next_state[self._state_list[self._portal_state[1]]] = (
+                self._state_list[self._portal_state[0]]
+            )
 
         self._init_states = []
         for state in range(self.get_grid_space()):
@@ -265,7 +270,9 @@ class GridWorld:
         Returns:
             bool
         """
-        return self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["GOAL"]
+        return (
+            self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["GOAL"]
+        )
 
     def _is_trap_state(self, state_coord: tuple) -> bool:
         """Check if the state is a trap state
@@ -276,7 +283,9 @@ class GridWorld:
         Returns:
             bool
         """
-        return self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["TRAP"]
+        return (
+            self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["TRAP"]
+        )
 
     def _is_lava_state(self, state_coord: tuple) -> bool:
         """Check if the state is a lava state
@@ -287,7 +296,9 @@ class GridWorld:
         Returns:
             bool
         """
-        return self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["LAVA"]
+        return (
+            self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["LAVA"]
+        )
 
     def _is_door_state(self, state_coord: tuple) -> bool:
         """Check if the state is a door state
@@ -298,7 +309,9 @@ class GridWorld:
         Returns:
             bool
         """
-        return self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["DOOR"]
+        return (
+            self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["DOOR"]
+        )
 
     def _is_key_state(self, state_coord: tuple) -> bool:
         """Check if the state is a key state
@@ -320,7 +333,9 @@ class GridWorld:
         Returns:
             bool
         """
-        return self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["EXIT"]
+        return (
+            self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["EXIT"]
+        )
 
     def _is_bait_state(self, state_coord: tuple) -> bool:
         """Check if the state is a bait state
@@ -331,7 +346,9 @@ class GridWorld:
         Returns:
             bool
         """
-        return self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["BAIT"]
+        return (
+            self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["BAIT"]
+        )
 
     def _is_portal_state(self, state_coord: tuple) -> bool:
         """Check if the state is a portal state
@@ -342,7 +359,9 @@ class GridWorld:
         Returns:
             bool
         """
-        return self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["PORTAL"]
+        return (
+            self._maze[state_coord[0], state_coord[1]] == self.OBJECT_TO_INDEX["PORTAL"]
+        )
 
     ############################
     # Hidden Environment state #
@@ -352,19 +371,37 @@ class GridWorld:
     def _is_closed(self):
         if self._door_state is None:
             return True
-        return self._maze[self._state_list[self._door_state][0], self._state_list[self._door_state][1]] == self.OBJECT_TO_INDEX["DOOR"]
+        return (
+            self._maze[
+                self._state_list[self._door_state][0],
+                self._state_list[self._door_state][1],
+            ]
+            == self.OBJECT_TO_INDEX["DOOR"]
+        )
 
     @property
     def _is_opened(self):
         if self._door_state is None:
             return False
-        return self._maze[self._state_list[self._door_state][0], self._state_list[self._door_state][1]] == self.OBJECT_TO_INDEX["EMPTY"]
+        return (
+            self._maze[
+                self._state_list[self._door_state][0],
+                self._state_list[self._door_state][1],
+            ]
+            == self.OBJECT_TO_INDEX["EMPTY"]
+        )
 
     @property
     def _is_baited(self):
         if self._bait_state is None:
             return False
-        return self._maze[self._state_list[self._bait_state][0], self._state_list[self._bait_state][1]] == self.OBJECT_TO_INDEX["EMPTY"]
+        return (
+            self._maze[
+                self._state_list[self._bait_state][0],
+                self._state_list[self._bait_state][1],
+            ]
+            == self.OBJECT_TO_INDEX["EMPTY"]
+        )
 
     ########################
     # Environment function #
@@ -373,31 +410,39 @@ class GridWorld:
     def close_door(self):
         if self._door_state is None:
             return
-        self._maze[self._state_list[self._door_state][0],
-                   self._state_list[self._door_state][1]] = self.OBJECT_TO_INDEX["DOOR"]
+        self._maze[
+            self._state_list[self._door_state][0], self._state_list[self._door_state][1]
+        ] = self.OBJECT_TO_INDEX["DOOR"]
+        self.is_door_open = False
         self.render_maze()
 
     def open_door(self):
         if self._door_state is None:
             return
-        self._maze[self._state_list[self._door_state][0],
-                   self._state_list[self._door_state][1]] = self.OBJECT_TO_INDEX["EMPTY"]
+        self._maze[
+            self._state_list[self._door_state][0], self._state_list[self._door_state][1]
+        ] = self.OBJECT_TO_INDEX["EMPTY"]
+        self.is_door_open = True
         self.render_maze()
 
     def bite(self):
         if self._bait_state is None:
             return
         self.step_reward = self._step_reward + self._bait_step_penalty
-        self._maze[self._state_list[self._bait_state][0],
-                   self._state_list[self._bait_state][1]] = self.OBJECT_TO_INDEX["EMPTY"]
+        self._maze[
+            self._state_list[self._bait_state][0], self._state_list[self._bait_state][1]
+        ] = self.OBJECT_TO_INDEX["EMPTY"]
+        self.is_bait_bitten = True
         self.render_maze()
 
     def place_bait(self):
         if self._bait_state is None:
             return
         self.step_reward = self._step_reward
-        self._maze[self._state_list[self._bait_state][0],
-                   self._state_list[self._bait_state][1]] = self.OBJECT_TO_INDEX["BAIT"]
+        self._maze[
+            self._state_list[self._bait_state][0], self._state_list[self._bait_state][1]
+        ] = self.OBJECT_TO_INDEX["BAIT"]
+        self.is_bait_bitten = False
         self.render_maze()
 
     def _get_next_state(self, state_coord: tuple, action: int) -> tuple:
@@ -421,7 +466,9 @@ class GridWorld:
             next_state_coord[1] -= 1
         elif action == 3:
             next_state_coord[1] += 1
-        if not self._is_valid_state(next_state_coord) and self._is_portal_state(state_coord):
+        if not self._is_valid_state(next_state_coord) and self._is_portal_state(
+            state_coord
+        ):
             next_state_coord = self.portal_next_state[state_coord]
         if not self._is_valid_state(next_state_coord):
             next_state_coord = state_coord
@@ -437,8 +484,43 @@ class GridWorld:
         Returns:
             tuple: next_state, reward, done, truncation
         """
-        # TODO implement the step function here
-        raise NotImplementedError
+        self._step_count += 1
+        state_coord = self._state_list[self._current_state % len(self._state_list)]
+        next_state_coord = self._get_next_state(state_coord, action)
+
+        next_state = self._state_list.index(next_state_coord)
+
+        reward = self.step_reward
+        done = False
+        truncation = (self._step_count > self.max_step)
+
+        if (
+            self._is_goal_state(state_coord)
+            or self._is_trap_state(state_coord)
+            or self._is_exit_state(state_coord)
+            or self._is_lava_state(next_state_coord)
+        ):
+            done = True
+            next_state = self.reset()
+
+        if self.is_door_open:
+            next_state += len(self._state_list)
+
+        if self._is_goal_state(state_coord):
+            reward = self._goal_reward
+        elif self._is_trap_state(state_coord):
+            reward = self._trap_reward
+        elif self._is_exit_state(state_coord):
+            reward = self._exit_reward
+        elif self._is_bait_state(next_state_coord):
+            reward = self._bait_reward
+            self.bite()
+        elif self._is_key_state(next_state_coord):
+            self.open_door()
+
+        self.set_current_state(next_state)
+
+        return next_state, reward, done, truncation
 
     def reset(self) -> int:
         """Reset the environment
@@ -446,8 +528,14 @@ class GridWorld:
         Returns:
             int: initial state
         """
-        # TODO implement the reset function here
-        raise NotImplementedError
+        self._current_state = np.random.choice(self._init_states)
+        if self.is_door_open:
+            self.close_door()
+        if self.is_bait_bitten:
+            self.place_bait()
+
+        self._step_count = 0
+        return self._current_state
 
     #############################
     # Visualize the environment #
@@ -476,10 +564,12 @@ class GridWorld:
         plt.close("all")
 
         self.fig, self.ax = plt.subplots(
-            figsize=(self._maze.shape[1], self._maze.shape[0]))
+            figsize=(self._maze.shape[1], self._maze.shape[0])
+        )
         self.render_maze()
-        self.ax.grid(which="major", axis="both",
-                     linestyle="-", color="gray", linewidth=2)
+        self.ax.grid(
+            which="major", axis="both", linestyle="-", color="gray", linewidth=2
+        )
         self.ax.set_xticks(np.arange(-0.5, self._maze.shape[1], 1))
         self.ax.set_yticks(np.arange(-0.5, self._maze.shape[0], 1))
         self.ax.set_xticklabels([])
@@ -521,7 +611,7 @@ class GridWorld:
             plt.show()
 
     def set_text_color(self, state, color):
-        text_id = self.state_to_text[state]
+        text_id = self.state_to_text[state % len(self._state_list)]
         text = "Agent" if color == "b" else str(state)
         self.ax.texts[text_id].set(c=color, text=text)
 
@@ -555,14 +645,36 @@ class GridWorld:
 
 
 class GridWorldEnv(gym.Env):
-    def __init__(self, maze_file, goal_reward, trap_reward, step_reward, exit_reward, bait_reward, bait_step_penalty, max_step, render_mode="human") -> None:
+    def __init__(
+        self,
+        maze_file,
+        goal_reward,
+        trap_reward,
+        step_reward,
+        exit_reward,
+        bait_reward,
+        bait_step_penalty,
+        max_step,
+        render_mode="human",
+    ) -> None:
         super(GridWorldEnv, self).__init__()
         self.render_mode = render_mode
         # Initialize the GridWorld
-        self.grid_world = GridWorld(maze_file, goal_reward, trap_reward,
-                                    step_reward, exit_reward, bait_reward, bait_step_penalty, max_step)
+        self.grid_world = GridWorld(
+            maze_file,
+            goal_reward,
+            trap_reward,
+            step_reward,
+            exit_reward,
+            bait_reward,
+            bait_step_penalty,
+            max_step,
+        )
 
-        self.metadata = {"render_modes": ["human", "ansi", "rgb_array"], "render_fps": 60}
+        self.metadata = {
+            "render_modes": ["human", "ansi", "rgb_array"],
+            "render_fps": 60,
+        }
         # Define action and observation spaces
         self.action_space = spaces.Discrete(self.grid_world.get_action_space())
         self.observation_space = spaces.Discrete(self.grid_world.get_state_space())

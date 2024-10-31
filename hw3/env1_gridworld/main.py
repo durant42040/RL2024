@@ -43,7 +43,7 @@ def test_correctness(filename: str = "tasks/maze.txt") -> None:
     # Extract the task name from the filename
     task_name = os.path.split(filename)[1].replace(".txt", "")
     if "_" in task_name:
-        task_name = task_name.split('_')[0]
+        task_name = task_name.split("_")[0]
     grid_world = GridWorld(
         maze_file=filename,
         step_reward=STEP_REWARD,
@@ -63,23 +63,40 @@ def test_correctness(filename: str = "tasks/maze.txt") -> None:
     done = df["done"]
     truncated = df["truncated"]
     next_state = df["next_state"]
-    
+
     result = []
     grid_world.set_current_state(state[0])
 
     # Iterate through the ground truth data
     for _, a, r, d, t, ns in zip(state, action, reward, done, truncated, next_state):
-        next_state_prediction, reward_prediction, done_prediction, truncated_prediction = grid_world.step(a)
-        
+        (
+            next_state_prediction,
+            reward_prediction,
+            done_prediction,
+            truncated_prediction,
+        ) = grid_world.step(a)
+
         # Check if the model prediction matches groud truth
         if done_prediction:
             next_state_prediction = grid_world.reset()
-            result.append( (next_state_prediction in grid_world._init_states) and reward_prediction == r and done_prediction == d and truncated_prediction == t)
+            result.append(
+                (next_state_prediction in grid_world._init_states)
+                and reward_prediction == r
+                and done_prediction == d
+                and truncated_prediction == t
+            )
             grid_world.set_current_state(ns)
         else:
-            result.append(next_state_prediction == ns and reward_prediction == r and done_prediction == d and truncated_prediction == t)
+            result.append(
+                next_state_prediction == ns
+                and reward_prediction == r
+                and done_prediction == d
+                and truncated_prediction == t
+            )
 
-    print(f"The correctness of the task {task_name}: {np.round(np.mean(result) * 100, 2)} %")
+    print(
+        f"The correctness of the task {task_name}: {np.round(np.mean(result) * 100, 2)} %"
+    )
 
 
 def write_gif(filename: str = "lava.txt", algorithm: type = PPO) -> None:
@@ -91,9 +108,11 @@ def write_gif(filename: str = "lava.txt", algorithm: type = PPO) -> None:
     """
     # Extract the task name from the filename
     task_name = os.path.split(filename)[1].replace(".txt", "")
-    
+
     # Register the env and make env
-    gym.register(f"GridWorld{task_name.capitalize()}-v1", entry_point="gridworld:GridWorldEnv")
+    gym.register(
+        f"GridWorld{task_name.capitalize()}-v1", entry_point="gridworld:GridWorldEnv"
+    )
     env = gym.make(
         f"GridWorld{task_name.capitalize()}-v1",
         render_mode=RENDER_MODE,
@@ -148,7 +167,7 @@ if __name__ == "__main__":
     test_correctness("tasks/door.txt")
     test_correctness("tasks/portal.txt")
     test_correctness("tasks/maze.txt")
-    # 
+
     # Write one trajectory to gif
     # write_gif("tasks/lava.txt", algorithm=PPO)
     # write_gif("tasks/exit.txt", algorithm=PPO)
