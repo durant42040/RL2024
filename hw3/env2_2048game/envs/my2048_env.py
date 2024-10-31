@@ -65,7 +65,7 @@ class My2048Env(gym.Env):
         self.observation_space = spaces.Box(0, 1, (layers, self.w, self.h), dtype=int)
         
         # TODO: Set negative reward (penalty) for illegal moves (optional)
-        self.set_illegal_move_reward(0)
+        self.set_illegal_move_reward(-10)
         
         self.set_max_tile(None)
 
@@ -125,8 +125,8 @@ class My2048Env(gym.Env):
                 [1.3, 1.2, 1, 0.8],
                 [1.2, 1, 0.8, 0.7]])
 
-            # reward += np.sum(weight * self.Matrix) / 100
-            
+            # reward with new highest tile
+
         except IllegalMove:
             logging.debug("Illegal move")
             info['illegal_move'] = True

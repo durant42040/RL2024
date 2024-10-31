@@ -1,6 +1,9 @@
 import warnings
+
+import numpy as np
 import torch as th
 import gymnasium as gym
+from click.core import batch
 from gymnasium import spaces
 from gymnasium.envs.registration import register
 
@@ -17,12 +20,6 @@ from stable_baselines3 import A2C, DQN, PPO, SAC
 from collections import Counter
 
 class CustomCNN(BaseFeaturesExtractor):
-    """
-    :param observation_space: (gym.Space)
-    :param features_dim: (int) Number of features extracted.
-        This corresponds to the number of unit for the last layer.
-    """
-
     def __init__(self, observation_space: spaces.Box, features_dim: int = 128):
         super().__init__(observation_space, features_dim)
         n_input_channels = observation_space.shape[0]
@@ -44,10 +41,47 @@ class CustomCNN(BaseFeaturesExtractor):
     def forward(self, observations: th.Tensor) -> th.Tensor:
         return self.linear(self.cnn(observations))
 
-policy_kwargs = dict(
-    features_extractor_class=CustomCNN,
-    features_extractor_kwargs=dict(features_dim=128),
-)
+class CustomAdjacentTile(BaseFeaturesExtractor):
+    def __init__(self, observation_space: spaces.Box, features_dim: int = 128):
+        super().__init__(observation_space, features_dim)
+
+    def forward(self, observations: th.Tensor) -> th.Tensor:
+        batch_size = observations.shape[0]
+        device = observations.device
+
+        tile_indices = th.argmax(observations, dim=1)
+
+        # Extract horizontal adjacent pairs
+        left_tiles = tile_indices[:, :, :-1]
+        right_tiles = tile_indices[:, :, 1:]
+        left_tiles = left_tiles.reshape(batch_size, -1)
+        right_tiles = right_tiles.reshape(batch_size, -1)
+
+        top_tiles = tile_indices[:, :-1, :]
+        bottom_tiles = tile_indices[:, 1:, :]
+        top_tiles = top_tiles.reshape(batch_size, -1)
+        bottom_tiles = bottom_tiles.reshape(batch_size, -1)
+
+        tile1_indices = th.cat([left_tiles, top_tiles], dim=1)
+        tile2_indices = th.cat([right_tiles, bottom_tiles], dim=1)
+
+        pairs_tensor = th.zeros(batch_size, 24, 16, 16, device=device)
+
+        batch_indices = th.arange(batch_size, device=device).unsqueeze(1).expand(-1, 24).reshape(-1)
+        pair_indices = th.arange(24, device=device).unsqueeze(0).expand(batch_size, -1).reshape(-1)
+        tile1_indices_flat = tile1_indices.reshape(-1)
+        tile2_indices_flat = tile2_indices.reshape(-1)
+
+        pairs_tensor[batch_indices, pair_indices, tile1_indices_flat, tile2_indices_flat] = 1
+
+        features = pairs_tensor.reshape(batch_size, -1)
+
+        return features
+
+
+
+
+
 
 warnings.filterwarnings("ignore")
 register(
@@ -57,16 +91,16 @@ register(
 
 # Set hyper params (configurations) for training
 my_config = {
-    "run_id": "DQN_CNN",
+    "run_id": "DQN_MLP",
 
     "algorithm": DQN,
-    "policy_network": "CnnPolicy",
-    "save_path": "models/DQN_CNN",
+    "policy_network": "MlpPolicy",
+    "save_path": "models/DQN_MLP",
 
     "epoch_num": 500,
     "timesteps_per_epoch": 1000,
     "eval_episode_num": 100,
-    "learning_rate": 1e-3,
+    "learning_rate": 1e-4,
 }
 
 
@@ -90,7 +124,7 @@ def eval(env, model, eval_episode_num):
         while not done:
             action, _state = model.predict(obs, deterministic=True)
             obs, reward, done, info = env.step(action)
-        
+
         avg_highest += info[0]['highest']
         avg_score   += info[0]['score']
         score.append(info[0]['score'])
@@ -98,7 +132,7 @@ def eval(env, model, eval_episode_num):
 
     avg_highest /= eval_episode_num
     avg_score /= eval_episode_num
-        
+
     return avg_score, avg_highest, score, highest
 
 def train(eval_env, model, config):
@@ -119,7 +153,7 @@ def train(eval_env, model, config):
         print(config["run_id"])
         print("Epoch: ", epoch)
         avg_score, avg_highest, score, highest = eval(eval_env, model, config["eval_episode_num"])
-        
+
         print("Avg_score:  ", avg_score)
         print("Avg_highest:", avg_highest)
         print()
@@ -152,27 +186,29 @@ if __name__ == "__main__":
         sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
     )
 
-    # Create training environment 
+    # Create training environment
     num_train_envs = 2
     train_env = DummyVecEnv([make_env for _ in range(num_train_envs)])
 
-    # Create evaluation environment 
-    eval_env = DummyVecEnv([make_env])  
+    # Create evaluation environment
+    eval_env = DummyVecEnv([make_env])
 
     # Create model from loaded config and train
     # Note: Set verbose to 0 if you don't want info messages
     model = my_config["algorithm"](
         my_config["policy_network"],
-        train_env, 
+        train_env,
         verbose=0,
         tensorboard_log=my_config["run_id"],
         learning_rate=my_config["learning_rate"],
         policy_kwargs=dict(
-            features_extractor_class=CustomCNN,
-            features_extractor_kwargs=dict(features_dim=128),
+            features_extractor_class=CustomAdjacentTile,
+            features_extractor_kwargs=dict(features_dim=6144),
+            net_arch=[512, 512],
         ),
         exploration_fraction=0.5,
-        exploration_final_eps=0.05,
+        exploration_final_eps=0.01,
+        batch_size=32,
     )
 
     train(eval_env, model, my_config)
