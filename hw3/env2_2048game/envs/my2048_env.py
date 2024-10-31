@@ -65,7 +65,7 @@ class My2048Env(gym.Env):
         self.observation_space = spaces.Box(0, 1, (layers, self.w, self.h), dtype=int)
         
         # TODO: Set negative reward (penalty) for illegal moves (optional)
-        self.set_illegal_move_reward(0.)
+        self.set_illegal_move_reward(0)
         
         self.set_max_tile(None)
 
@@ -116,14 +116,15 @@ class My2048Env(gym.Env):
             self.add_tile()
             done = self.isend()
             reward = float(score)
+            reward -= 2.2
 
             # TODO: Add reward according to weighted states (optional)
-            weight = np.array([
-                    [0  , 0  , 0  , 0  ],
-                    [0  , 0  , 0  , 0  ],
-                    [0  , 0  , 0  , 0  ],
-                    [0  , 0  , 0  , 0  ]])
-            reward += 0
+            # weight = np.array([
+            #     [20, 10, 5, 2],
+            #     [10, 5, 2, 1],
+            #     [5, 2, 1, 0.5],
+            #     [2, 1, 0.5, 0.1]])
+            # reward += np.sum(weight * self.Matrix)
             
         except IllegalMove:
             logging.debug("Illegal move")
@@ -311,3 +312,4 @@ class My2048Env(gym.Env):
     def set_board(self, new_board):
         """Retrieve the whole board, useful for testing."""
         self.Matrix = new_board
+
