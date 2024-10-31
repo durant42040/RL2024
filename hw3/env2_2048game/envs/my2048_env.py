@@ -119,12 +119,13 @@ class My2048Env(gym.Env):
             reward -= 2.2
 
             # TODO: Add reward according to weighted states (optional)
-            # weight = np.array([
-            #     [20, 10, 5, 2],
-            #     [10, 5, 2, 1],
-            #     [5, 2, 1, 0.5],
-            #     [2, 1, 0.5, 0.1]])
-            # reward += np.sum(weight * self.Matrix)
+            weight = np.array([
+                [2, 1.5, 1.3, 1.2],
+                [1.5, 1.3, 1.2, 1],
+                [1.3, 1.2, 1, 0.8],
+                [1.2, 1, 0.8, 0.7]])
+
+            # reward += np.sum(weight * self.Matrix) / 100
             
         except IllegalMove:
             logging.debug("Illegal move")
@@ -132,7 +133,10 @@ class My2048Env(gym.Env):
             reward = self.illegal_move_reward
 
             # TODO: Modify this part for the agent to have a chance to explore other actions (optional)
-            done = True
+            done = False
+            self.foul_count += 1
+            if self.foul_count > 10:
+                done = True
 
         truncate = False
         info['highest'] = self.highest()
