@@ -1,4 +1,5 @@
 import warnings
+from pyexpat import features
 
 import numpy as np
 import torch as th
@@ -19,30 +20,8 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecVideoRecorder
 from stable_baselines3 import A2C, DQN, PPO, SAC
 from collections import Counter
 
-class CustomCNN(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Box, features_dim: int = 128):
-        super().__init__(observation_space, features_dim)
-        n_input_channels = observation_space.shape[0]
-        self.cnn = nn.Sequential(
-            nn.Conv2d(n_input_channels, 32, kernel_size=3, stride=1, padding=0),
-            nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=2, stride=1, padding=0),
-            nn.ReLU(),
-            nn.Flatten(),
-        )
-
-        with th.no_grad():
-            n_flatten = self.cnn(
-                th.as_tensor(observation_space.sample()[None]).float()
-            ).shape[1]
-
-        self.linear = nn.Sequential(nn.Linear(n_flatten, features_dim), nn.ReLU())
-
-    def forward(self, observations: th.Tensor) -> th.Tensor:
-        return self.linear(self.cnn(observations))
-
 class CustomAdjacentTile(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Box, features_dim: int = 128):
+    def __init__(self, observation_space: spaces.Box, features_dim: int = 6144):
         super().__init__(observation_space, features_dim)
 
     def forward(self, observations: th.Tensor) -> th.Tensor:
@@ -51,7 +30,6 @@ class CustomAdjacentTile(BaseFeaturesExtractor):
 
         tile_indices = th.argmax(observations, dim=1)
 
-        # Extract horizontal adjacent pairs
         left_tiles = tile_indices[:, :, :-1]
         right_tiles = tile_indices[:, :, 1:]
         left_tiles = left_tiles.reshape(batch_size, -1)
@@ -73,14 +51,33 @@ class CustomAdjacentTile(BaseFeaturesExtractor):
         tile2_indices_flat = tile2_indices.reshape(-1)
 
         pairs_tensor[batch_indices, pair_indices, tile1_indices_flat, tile2_indices_flat] = 1
-
         features = pairs_tensor.reshape(batch_size, -1)
 
         return features
 
+class CustomCNN(BaseFeaturesExtractor):
+    def __init__(self, observation_space: spaces.Box, features_dim: int = 128, n_input_channels: int = 24):
+        super().__init__(observation_space, features_dim)
 
+        self.cnn = nn.Sequential(
+            nn.Conv2d(n_input_channels, 32, kernel_size=3, stride=1, padding=0),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=2, stride=1, padding=0),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
 
+        with th.no_grad():
+            sample_input = th.zeros(1, n_input_channels, 16, 16)
+            n_flatten = self.cnn(sample_input).shape[1]
 
+        self.linear = nn.Sequential(
+            nn.Linear(n_flatten, features_dim),
+            nn.ReLU()
+        )
+
+    def forward(self, observations: th.Tensor) -> th.Tensor:
+        return self.linear(self.cnn(observations))
 
 
 warnings.filterwarnings("ignore")
@@ -169,9 +166,9 @@ def train(eval_env, model, config):
             print(f"{item[0]}: {item[1]}")
 
         ### Save best model
-        if current_best < avg_score:
+        if current_best < avg_highest:
             print("Saving Model")
-            current_best = avg_score
+            current_best = avg_highest
             save_path = config["save_path"]
             model.save(f"{save_path}/{epoch}")
 
@@ -210,5 +207,7 @@ if __name__ == "__main__":
         exploration_final_eps=0.01,
         batch_size=32,
     )
+
+    print(model.policy)
 
     train(eval_env, model, my_config)
