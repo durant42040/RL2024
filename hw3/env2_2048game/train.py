@@ -56,7 +56,7 @@ class CustomAdjacentTile(BaseFeaturesExtractor):
         return features
 
 class CustomCNN(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Box, features_dim: int = 128, n_input_channels: int = 24):
+    def __init__(self, observation_space: spaces.Box, features_dim: int = 128, n_input_channels: int = 16):
         super().__init__(observation_space, features_dim)
 
         self.cnn = nn.Sequential(
@@ -68,7 +68,7 @@ class CustomCNN(BaseFeaturesExtractor):
         )
 
         with th.no_grad():
-            sample_input = th.zeros(1, n_input_channels, 16, 16)
+            sample_input = th.zeros(1, n_input_channels, 4, 4)
             n_flatten = self.cnn(sample_input).shape[1]
 
         self.linear = nn.Sequential(
@@ -91,13 +91,13 @@ my_config = {
     "run_id": "DQN_MLP",
 
     "algorithm": DQN,
-    "policy_network": "MlpPolicy",
+    "policy_network": "CnnPolicy",
     "save_path": "models/DQN_MLP",
 
     "epoch_num": 500,
     "timesteps_per_epoch": 1000,
     "eval_episode_num": 100,
-    "learning_rate": 1e-4,
+    "learning_rate": 1e-3,
 }
 
 
@@ -199,9 +199,8 @@ if __name__ == "__main__":
         tensorboard_log=my_config["run_id"],
         learning_rate=my_config["learning_rate"],
         policy_kwargs=dict(
-            features_extractor_class=CustomAdjacentTile,
-            features_extractor_kwargs=dict(features_dim=6144),
-            net_arch=[512, 512],
+            features_extractor_class=CustomCNN,
+            features_extractor_kwargs=dict(features_dim=128),
         ),
         exploration_fraction=0.5,
         exploration_final_eps=0.01,
