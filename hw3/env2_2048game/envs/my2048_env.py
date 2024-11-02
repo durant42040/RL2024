@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+import math
+
 import gymnasium as gym
 from gymnasium import spaces
 from gymnasium.utils import seeding
@@ -134,7 +136,7 @@ class My2048Env(gym.Env):
             reward = self.illegal_move_reward
 
             # TODO: Modify this part for the agent to have a chance to explore other actions (optional)
-            done = False
+            # done = False
             self.foul_count += 1
             if self.foul_count > 10:
                 done = True
@@ -262,7 +264,7 @@ class My2048Env(gym.Env):
             combined_row[output_index] = p[0]
             if p[0] == p[1]:
                 combined_row[output_index] += p[1]
-                move_score += p[0] + p[1]
+                move_score += math.log2(p[0] + p[1])
                 # Skip the next thing in the list.
                 skip = True
             output_index += 1

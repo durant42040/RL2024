@@ -60,10 +60,10 @@ class CustomCNN(BaseFeaturesExtractor):
         super().__init__(observation_space, features_dim)
 
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_input_channels, 32, kernel_size=3, stride=1, padding=0),
+            nn.Conv2d(n_input_channels, 64, kernel_size=3, stride=1, padding=0),
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=2, stride=1, padding=0),
-            nn.ReLU(),
+            # nn.Conv2d(32, 64, kernel_size=2, stride=1, padding=0),
+            # nn.ReLU(),
             nn.Flatten(),
         )
 
@@ -181,6 +181,7 @@ if __name__ == "__main__":
         project="assignment_3",
         config=my_config,
         sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
+        id="reduce penalty to 10"
     )
 
     # Create training environment
