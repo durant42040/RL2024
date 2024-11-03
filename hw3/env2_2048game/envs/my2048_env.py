@@ -129,6 +129,9 @@ class My2048Env(gym.Env):
 
             # reward with new highest tile
             reward += np.sum(self.Matrix * weight) / 10
+            if self.highest() > np.max(pre_state):
+                reward += np.log2(self.highest())
+
 
         except IllegalMove:
             logging.debug("Illegal move")

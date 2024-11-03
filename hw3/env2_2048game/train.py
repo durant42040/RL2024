@@ -40,18 +40,55 @@ class CustomAdjacentTile(BaseFeaturesExtractor):
         top_tiles = top_tiles.reshape(batch_size, -1)
         bottom_tiles = bottom_tiles.reshape(batch_size, -1)
 
-        tile1_indices = th.cat([left_tiles, top_tiles], dim=1)
-        tile2_indices = th.cat([right_tiles, bottom_tiles], dim=1)
+        tile1_pairs = th.cat([left_tiles, top_tiles], dim=1)
+        tile2_pairs = th.cat([right_tiles, bottom_tiles], dim=1)
 
-        pairs_tensor = th.zeros(batch_size, 24, 16, 16, device=device)
+        num_pairs = tile1_pairs.shape[1]
 
-        batch_indices = th.arange(batch_size, device=device).unsqueeze(1).expand(-1, 24).reshape(-1)
-        pair_indices = th.arange(24, device=device).unsqueeze(0).expand(batch_size, -1).reshape(-1)
-        tile1_indices_flat = tile1_indices.reshape(-1)
-        tile2_indices_flat = tile2_indices.reshape(-1)
+        pairs_tensor = th.zeros(batch_size, num_pairs, 16, 16, device=device)
+        batch_indices = th.arange(batch_size, device=device).unsqueeze(1).expand(-1, num_pairs).reshape(-1)
+        pair_indices = th.arange(num_pairs, device=device).unsqueeze(0).expand(batch_size, -1).reshape(-1)
+        tile1_flat = tile1_pairs.reshape(-1)
+        tile2_flat = tile2_pairs.reshape(-1)
+        pairs_tensor[batch_indices, pair_indices, tile1_flat, tile2_flat] = 1
 
-        pairs_tensor[batch_indices, pair_indices, tile1_indices_flat, tile2_indices_flat] = 1
-        features = pairs_tensor.reshape(batch_size, -1)
+        left_triplets = tile_indices[:, :, :-2]
+        center_triplets = tile_indices[:, :, 1:-1]
+        right_triplets = tile_indices[:, :, 2:]
+        left_triplets = left_triplets.reshape(batch_size, -1)
+        center_triplets = center_triplets.reshape(batch_size, -1)
+        right_triplets = right_triplets.reshape(batch_size, -1)
+
+        top_triplets = tile_indices[:, :-2, :]
+        center_vertical_triplets = tile_indices[:, 1:-1, :]
+        bottom_triplets = tile_indices[:, 2:, :]
+        top_triplets = top_triplets.reshape(batch_size, -1)
+        center_vertical_triplets = center_vertical_triplets.reshape(batch_size, -1)
+        bottom_triplets = bottom_triplets.reshape(batch_size, -1)
+
+        tile1_triplets = th.cat([left_triplets, top_triplets], dim=1)
+        tile2_triplets = th.cat([center_triplets, center_vertical_triplets], dim=1)
+        tile3_triplets = th.cat([right_triplets, bottom_triplets], dim=1)
+
+        num_triplets = tile1_triplets.shape[1]
+
+        triplet_tensor = th.zeros(batch_size, num_triplets, 16, 16, 16, device=device)
+        batch_indices_triplet = th.arange(batch_size, device=device).unsqueeze(1).expand(-1, num_triplets).reshape(-1)
+        triplet_indices = th.stack([tile1_triplets, tile2_triplets, tile3_triplets], dim=2).reshape(-1,
+                                                                                                    3)
+        triplet1_flat = triplet_indices[:, 0]
+        triplet2_flat = triplet_indices[:, 1]
+        triplet3_flat = triplet_indices[:, 2]
+
+        triplet_tensor[batch_indices_triplet, th.arange(num_triplets, device=device).repeat(
+            batch_size), triplet1_flat, triplet2_flat, triplet3_flat] = 1
+
+
+        features = th.cat([
+            pairs_tensor.reshape(batch_size, -1),
+            triplet_tensor.reshape(batch_size, -1),
+            observations.flatten(start_dim=1)
+        ], dim=1)
 
         return features
 
@@ -62,8 +99,6 @@ class CustomCNN(BaseFeaturesExtractor):
         self.cnn = nn.Sequential(
             nn.Conv2d(n_input_channels, 64, kernel_size=3, stride=1, padding=0),
             nn.ReLU(),
-            # nn.Conv2d(32, 64, kernel_size=2, stride=1, padding=0),
-            # nn.ReLU(),
             nn.Flatten(),
         )
 
@@ -91,13 +126,13 @@ my_config = {
     "run_id": "DQN_MLP",
 
     "algorithm": DQN,
-    "policy_network": "CnnPolicy",
+    "policy_network": "MlpPolicy",
     "save_path": "models/DQN_MLP",
 
-    "epoch_num": 500,
+    "epoch_num": 2000,
     "timesteps_per_epoch": 1000,
     "eval_episode_num": 100,
-    "learning_rate": 1e-3,
+    "learning_rate": 1e-4,
 }
 
 
@@ -171,6 +206,10 @@ def train(eval_env, model, config):
             current_best = avg_highest
             save_path = config["save_path"]
             model.save(f"{save_path}/{epoch}")
+        if epoch % 20 == 0:
+            print("Saving Model")
+            save_path = config["save_path"]
+            model.save(f"{save_path}/{epoch}")
 
         print("---------------")
 
@@ -181,7 +220,6 @@ if __name__ == "__main__":
         project="assignment_3",
         config=my_config,
         sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
-        id="reduce penalty to 10"
     )
 
     # Create training environment
@@ -200,14 +238,15 @@ if __name__ == "__main__":
         tensorboard_log=my_config["run_id"],
         learning_rate=my_config["learning_rate"],
         policy_kwargs=dict(
-            features_extractor_class=CustomCNN,
-            features_extractor_kwargs=dict(features_dim=128),
+            features_extractor_class=CustomAdjacentTile,
+            features_extractor_kwargs=dict(features_dim=71936),
+            net_arch=[64, 64],
         ),
         exploration_fraction=0.5,
         exploration_final_eps=0.01,
         batch_size=32,
     )
-
+    # model = DQN.load("models/cnn/179", env=train_env)
     print(model.policy)
 
     train(eval_env, model, my_config)
