@@ -1,16 +1,12 @@
 import warnings
-from pyexpat import features
 
-import numpy as np
 import torch as th
 import gymnasium as gym
-from click.core import batch
 from gymnasium import spaces
 from gymnasium.envs.registration import register
 
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from torch import nn
-from wandb.integration.torch.wandb_torch import torch
 
 import wandb
 from wandb.integration.sb3 import WandbCallback
@@ -86,7 +82,7 @@ class CustomAdjacentTile(BaseFeaturesExtractor):
 
         features = th.cat([
             pairs_tensor.reshape(batch_size, -1),
-            triplet_tensor.reshape(batch_size, -1),
+            # triplet_tensor.reshape(batch_size, -1),
             observations.flatten(start_dim=1)
         ], dim=1)
 
@@ -125,14 +121,14 @@ register(
 my_config = {
     "run_id": "DQN_MLP",
 
-    "algorithm": DQN,
+    "algorithm": PPO,
     "policy_network": "MlpPolicy",
     "save_path": "models/DQN_MLP",
 
-    "epoch_num": 2000,
+    "epoch_num": 1000,
     "timesteps_per_epoch": 1000,
     "eval_episode_num": 100,
-    "learning_rate": 1e-4,
+    "learning_rate": 1e-5,
 }
 
 
@@ -201,15 +197,12 @@ def train(eval_env, model, config):
             print(f"{item[0]}: {item[1]}")
 
         ### Save best model
-        if current_best < avg_highest:
+        if current_best < avg_highest or epoch % 20 == 0:
             print("Saving Model")
             current_best = avg_highest
             save_path = config["save_path"]
             model.save(f"{save_path}/{epoch}")
-        if epoch % 20 == 0:
-            print("Saving Model")
-            save_path = config["save_path"]
-            model.save(f"{save_path}/{epoch}")
+
 
         print("---------------")
 
@@ -219,7 +212,8 @@ if __name__ == "__main__":
     run = wandb.init(
         project="assignment_3",
         config=my_config,
-        sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
+        sync_tensorboard=True,
+        id="DQN",
     )
 
     # Create training environment
@@ -240,13 +234,11 @@ if __name__ == "__main__":
         policy_kwargs=dict(
             features_extractor_class=CustomAdjacentTile,
             features_extractor_kwargs=dict(features_dim=71936),
+            # features_extractor_kwargs=dict(features_dim=6400),
             net_arch=[64, 64],
         ),
-        exploration_fraction=0.5,
-        exploration_final_eps=0.01,
-        batch_size=32,
     )
-    # model = DQN.load("models/cnn/179", env=train_env)
-    print(model.policy)
+    # model.set_parameters("models/cnn/557")
+    # model = DQN.load("models/cnn/557", env=train_env)
 
     train(eval_env, model, my_config)

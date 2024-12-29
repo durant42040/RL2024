@@ -50,7 +50,7 @@ def evaluation(env, model, render_last, eval_num=100):
 
 
 if __name__ == "__main__":
-    model_path = "models/DQN_MLP/320"  # Change path name to load different models
+    model_path = "models/cnn/401"  # Change path name to load different models
     env = gym.make('2048-eval')
 
     ### Load model with SB3
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     # (You don't necessarily need to use PPO for training)
     model = DQN.load(model_path)
     
-    eval_num = 1000
+    eval_num = 100
     score, highest = evaluation(env, model, True, eval_num)
 
     print("Avg_score:  ", np.sum(score)/eval_num)

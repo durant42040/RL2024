@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from gymnasium import spaces
 from matplotlib import colors
-from sympy.strategies.core import switch
 
 COLORS = [
     "white",

@@ -117,8 +117,7 @@ class My2048Env(gym.Env):
             assert score <= 2**(self.w*self.h)
             self.add_tile()
             done = self.isend()
-            reward = float(score)
-            # reward -= 2.2
+            # reward = float(score)
 
             # TODO: Add reward according to weighted states (optional)
             weight = np.array([
@@ -128,10 +127,11 @@ class My2048Env(gym.Env):
                 [0.1, 0, 0, 0.1]])
 
             # reward with new highest tile
-            reward += np.sum(self.Matrix * weight) / 10
-            if self.highest() > np.max(pre_state):
-                reward += np.log2(self.highest())
+            # reward += np.sum(self.Matrix * weight) / 10
+            # if self.highest() > np.max(pre_state):
+            #     reward += np.log2(self.highest())
 
+            reward = np.sum(self.Matrix == 0)
 
         except IllegalMove:
             logging.debug("Illegal move")
